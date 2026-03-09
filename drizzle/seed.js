@@ -17,6 +17,7 @@ function initializeDatabase() {
       password_hash TEXT NOT NULL,
       name TEXT,
       image TEXT,
+      role TEXT NOT NULL DEFAULT 'user',
       locale TEXT NOT NULL DEFAULT 'de',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
@@ -40,6 +41,7 @@ function initializeDatabase() {
       category TEXT,
       tags TEXT DEFAULT '[]',
       is_public INTEGER NOT NULL DEFAULT 0,
+      forked_from_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )`,
@@ -76,7 +78,7 @@ function initializeDatabase() {
     `CREATE TABLE IF NOT EXISTS meal_plans (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      recipe_id TEXT NOT NULL REFERENCES recipes(id),
+      recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
       date TEXT NOT NULL,
       meal_type TEXT NOT NULL,
       servings INTEGER NOT NULL DEFAULT 2,
@@ -129,6 +131,25 @@ function initializeDatabase() {
       sqlite.exec(migration);
     } catch (error) {
       console.error('Migration error:', error);
+    }
+  }
+
+  // Migrations for existing databases (ALTER TABLE is safe with IF NOT EXISTS pattern)
+  const alterMigrations = [
+    { table: 'users', column: 'role', sql: `ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'` },
+    { table: 'recipes', column: 'forked_from_id', sql: `ALTER TABLE recipes ADD COLUMN forked_from_id TEXT REFERENCES recipes(id) ON DELETE SET NULL` },
+  ];
+
+  for (const { table, column, sql } of alterMigrations) {
+    try {
+      const columns = sqlite.pragma(`table_info(${table})`);
+      const exists = columns.some(c => c.name === column);
+      if (!exists) {
+        sqlite.exec(sql);
+        console.log(`  ✅ Added column ${table}.${column}`);
+      }
+    } catch (error) {
+      // Column likely already exists
     }
   }
 

@@ -12,15 +12,11 @@ fi
 
 echo "✅ AUTH_SECRET is configured"
 
-# Initialize database if it doesn't exist
-if [ ! -f /app/data/pantry.db ]; then
-    echo "📦 Initializing database..."
-    cd /app
-    node drizzle/seed.js
-    echo "✅ Database initialized"
-else
-    echo "✅ Database already exists"
-fi
+# Initialize database or run migrations on existing one
+echo "📦 Running database setup & migrations..."
+cd /app
+node drizzle/seed.js
+echo "✅ Database ready"
 
 echo "🌐 Starting Next.js server..."
 exec node server.js
