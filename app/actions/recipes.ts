@@ -1,9 +1,9 @@
 'use server';
 
 import { db } from '@/db/drizzle';
-import { recipes, recipeIngredients, recipeInstructions, favorites } from '@/db/schema';
+import { recipes, recipeIngredients, recipeInstructions, favorites, users } from '@/db/schema';
 import { auth } from '@/lib/auth';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, or, ne, desc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
@@ -14,9 +14,15 @@ export async function getRecipes() {
     return [];
   }
 
-  const userRecipes = await db.query.recipes.findMany({
-    where: eq(recipes.userId, session.user.id),
+  const allRecipes = await db.query.recipes.findMany({
+    where: or(
+      eq(recipes.userId, session.user.id),
+      eq(recipes.isPublic, true),
+    ),
     with: {
+      user: {
+        columns: { id: true, name: true, username: true },
+      },
       ingredients: {
         orderBy: (ingredients, { asc }) => [asc(ingredients.order)],
       },
@@ -30,7 +36,7 @@ export async function getRecipes() {
     orderBy: [desc(recipes.createdAt)],
   });
 
-  return userRecipes;
+  return allRecipes;
 }
 
 export async function getRecipeById(id: string) {
@@ -41,8 +47,17 @@ export async function getRecipeById(id: string) {
   }
 
   const recipe = await db.query.recipes.findFirst({
-    where: and(eq(recipes.id, id), eq(recipes.userId, session.user.id)),
+    where: and(
+      eq(recipes.id, id),
+      or(
+        eq(recipes.userId, session.user.id),
+        eq(recipes.isPublic, true),
+      ),
+    ),
     with: {
+      user: {
+        columns: { id: true, name: true, username: true },
+      },
       ingredients: {
         orderBy: (ingredients, { asc }) => [asc(ingredients.order)],
       },
@@ -70,6 +85,9 @@ export async function getFavoriteRecipes() {
     with: {
       recipe: {
         with: {
+          user: {
+            columns: { id: true, name: true, username: true },
+          },
           ingredients: {
             orderBy: (ingredients, { asc }) => [asc(ingredients.order)],
           },
@@ -290,6 +308,110 @@ export async function deleteRecipe(recipeId: string) {
   revalidatePath('/favorites', 'page');
 
   redirect('/recipes');
+}
+
+export async function toggleRecipePublic(recipeId: string) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized');
+  }
+
+  const recipe = await db.query.recipes.findFirst({
+    where: and(eq(recipes.id, recipeId), eq(recipes.userId, session.user.id)),
+  });
+
+  if (!recipe) {
+    throw new Error('Recipe not found or unauthorized');
+  }
+
+  await db
+    .update(recipes)
+    .set({ isPublic: !recipe.isPublic, updatedAt: new Date() })
+    .where(eq(recipes.id, recipeId));
+
+  revalidatePath('/recipes', 'page');
+  revalidatePath(`/recipes/${recipeId}`, 'page');
+  revalidatePath('/dashboard', 'page');
+}
+
+export async function forkRecipe(recipeId: string) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized');
+  }
+
+  const sourceRecipe = await db.query.recipes.findFirst({
+    where: and(
+      eq(recipes.id, recipeId),
+      eq(recipes.isPublic, true),
+      ne(recipes.userId, session.user.id),
+    ),
+    with: {
+      ingredients: {
+        orderBy: (ingredients, { asc }) => [asc(ingredients.order)],
+      },
+      instructions: {
+        orderBy: (instructions, { asc }) => [asc(instructions.stepNumber)],
+      },
+    },
+  });
+
+  if (!sourceRecipe) {
+    throw new Error('Recipe not found or not public');
+  }
+
+  const [newRecipe] = await db
+    .insert(recipes)
+    .values({
+      userId: session.user.id,
+      titleDe: sourceRecipe.titleDe,
+      titleEn: sourceRecipe.titleEn,
+      subtitleDe: sourceRecipe.subtitleDe,
+      subtitleEn: sourceRecipe.subtitleEn,
+      descriptionDe: sourceRecipe.descriptionDe,
+      descriptionEn: sourceRecipe.descriptionEn,
+      imageUrl: sourceRecipe.imageUrl,
+      prepTime: sourceRecipe.prepTime,
+      cookTime: sourceRecipe.cookTime,
+      servings: sourceRecipe.servings,
+      calories: sourceRecipe.calories,
+      category: sourceRecipe.category,
+      tags: sourceRecipe.tags,
+      isPublic: false,
+      forkedFromId: sourceRecipe.id,
+    })
+    .returning();
+
+  if (sourceRecipe.ingredients.length > 0) {
+    await db.insert(recipeIngredients).values(
+      sourceRecipe.ingredients.map((ing) => ({
+        recipeId: newRecipe.id,
+        nameDe: ing.nameDe,
+        nameEn: ing.nameEn,
+        amount: ing.amount,
+        unit: ing.unit,
+        order: ing.order,
+      }))
+    );
+  }
+
+  if (sourceRecipe.instructions.length > 0) {
+    await db.insert(recipeInstructions).values(
+      sourceRecipe.instructions.map((inst) => ({
+        recipeId: newRecipe.id,
+        stepNumber: inst.stepNumber,
+        instructionDe: inst.instructionDe,
+        instructionEn: inst.instructionEn,
+      }))
+    );
+  }
+
+  revalidatePath('/recipes', 'page');
+  revalidatePath('/dashboard', 'page');
+
+  redirect(`/recipes/${newRecipe.id}`);
 }
 
 export async function scrapeRecipe(url: string) {

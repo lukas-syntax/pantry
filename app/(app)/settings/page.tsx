@@ -4,7 +4,7 @@ import { users } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import { redirect } from "next/navigation"
 import { SettingsForm } from "@/components/settings/settings-form"
-import { User, Shield } from "lucide-react"
+import { User } from "lucide-react"
 import { getTranslations } from 'next-intl/server'
 
 export default async function SettingsPage() {
@@ -25,7 +25,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="container max-w-5xl mx-auto py-8 md:py-12">
-      {/* Header Section */}
       <div className="mb-10">
         <div className="flex items-center gap-3 mb-3">
           <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30">
@@ -49,6 +48,7 @@ export default async function SettingsPage() {
           username: user.username,
           image: user.image,
         }}
+        isAdmin={session.user.role === 'admin'}
       />
     </div>
   )

@@ -1,4 +1,5 @@
 import { getRecipeById } from '@/app/actions/recipes';
+import { auth } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import RecipeDetailClient from './recipe-detail-client';
 
@@ -11,6 +12,7 @@ export default async function RecipeDetailPage({
 }) {
   const { id } = await params;
   const locale = 'en' as 'de' | 'en';
+  const session = await auth();
 
   const recipe = await getRecipeById(id);
 
@@ -18,5 +20,11 @@ export default async function RecipeDetailPage({
     notFound();
   }
 
-  return <RecipeDetailClient recipe={recipe} locale={locale} />;
+  return (
+    <RecipeDetailClient
+      recipe={recipe}
+      locale={locale}
+      currentUserId={session?.user?.id ?? ''}
+    />
+  );
 }

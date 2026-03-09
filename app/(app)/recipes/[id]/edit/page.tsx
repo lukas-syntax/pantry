@@ -1,8 +1,9 @@
 import RecipeForm from '@/components/recipes/recipe-form';
 import { getRecipeById } from '@/app/actions/recipes';
+import { auth } from '@/lib/auth';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,11 +14,16 @@ export default async function EditRecipePage({
 }) {
   const { id } = await params;
   const locale = 'en' as 'de' | 'en';
+  const session = await auth();
 
   const recipe = await getRecipeById(id);
 
   if (!recipe) {
     notFound();
+  }
+
+  if (recipe.userId !== session?.user?.id) {
+    redirect(`/recipes/${id}`);
   }
 
   return (

@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Camera, Save, Lock, User, Loader2, Shield, AtSign, UserCircle, Eye, EyeOff, Globe } from 'lucide-react'
+import { Camera, Save, Lock, User, Loader2, Shield, AtSign, UserCircle, Eye, EyeOff, Globe, Users } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { UpdateTestCard } from './update-test-card'
 import { useTranslations } from 'next-intl'
@@ -36,10 +37,34 @@ const initialState: State = {
     success: ''
 }
 
-export function SettingsForm({ user }: { user: UserData }) {
+export function SettingsForm({ user, isAdmin = false }: { user: UserData; isAdmin?: boolean }) {
+    const t = useTranslations('settings')
+
     return (
         <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-1">
             <LanguageSection />
+            {isAdmin && (
+                <Link href="/settings/users">
+                    <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur hover:border-amber-500/30 transition-colors cursor-pointer">
+                        <CardHeader className="space-y-1">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                        <Users className="w-5 h-5 text-amber-400" />
+                                    </div>
+                                    <div>
+                                        <CardTitle className="text-xl text-zinc-100">{t('userManagement')}</CardTitle>
+                                        <CardDescription className="text-zinc-400">{t('userManagementDesc')}</CardDescription>
+                                    </div>
+                                </div>
+                                <div className="text-zinc-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                </div>
+                            </div>
+                        </CardHeader>
+                    </Card>
+                </Link>
+            )}
             <UpdateTestCard />
             <ProfileSection user={user} />
             <PasswordSection />

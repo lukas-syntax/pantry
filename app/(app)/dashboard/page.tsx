@@ -15,9 +15,11 @@ export default async function DashboardPage() {
   const tRecipes = await getTranslations('recipes');
   const tCommon = await getTranslations('common');
 
+  const currentUserId = session?.user?.id ?? '';
   const allRecipes = await getRecipes();
-  const featuredRecipe = allRecipes[0];
-  const recentRecipes = allRecipes.slice(1, 4);
+  const myRecipes = allRecipes.filter((r) => r.userId === currentUserId);
+  const featuredRecipe = myRecipes[0];
+  const recentRecipes = myRecipes.slice(1, 4);
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-12 pt-6">
@@ -33,7 +35,7 @@ export default async function DashboardPage() {
               {t('whatToCook')} <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">{t('today')}</span>
             </h1>
             <p className="text-zinc-300 text-lg leading-relaxed max-w-lg">
-              {t('recipesInCollection', { count: allRecipes.length })}
+              {t('recipesInCollection', { count: myRecipes.length })}
             </p>
           </div>
 
@@ -89,14 +91,14 @@ export default async function DashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {recentRecipes.map((recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} locale={locale} />
+              <RecipeCard key={recipe.id} recipe={recipe} locale={locale} currentUserId={currentUserId} />
             ))}
           </div>
         </section>
       )}
 
       {/* Empty State */}
-      {allRecipes.length === 0 && (
+      {myRecipes.length === 0 && (
         <div className="flex flex-col items-center justify-center py-32 text-center border-4 border-dashed border-white/10 rounded-[32px] bg-zinc-900/50 backdrop-blur-md">
           <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-8 shadow-inner ring-1 ring-white/10">
             <Plus size={40} className="text-zinc-500" />

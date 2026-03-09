@@ -10,6 +10,7 @@ declare module 'next-auth' {
   interface Session {
     user: {
       id: string;
+      role: 'admin' | 'user';
     } & DefaultSession['user'];
   }
 }
@@ -47,6 +48,7 @@ const CredentialsProvider = Credentials({
       email: user.email,
       name: user.name,
       image: user.image,
+      role: user.role,
     };
   },
 });
@@ -65,7 +67,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.name = user.name;
+        token.email = user.email;
         token.picture = user.image;
+        token.role = (user as any).role ?? 'user';
       }
       if (trigger === "update" && session) {
         token.name = session.name;
@@ -76,7 +81,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.name = token.name as string;
+        session.user.email = token.email as string;
         session.user.image = token.picture as string;
+        session.user.role = (token.role as 'admin' | 'user') ?? 'user';
       }
       return session;
     },

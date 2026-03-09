@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, Maximize2 } from 'lucide-react';
+import { Heart, Maximize2, Globe, User } from 'lucide-react';
 import Link from 'next/link';
 import { toggleFavorite } from '@/app/actions/recipes';
 import { useTransition } from 'react';
@@ -8,6 +8,7 @@ import { useTransition } from 'react';
 interface RecipeCardProps {
   recipe: {
     id: string;
+    userId: string;
     titleDe?: string | null;
     titleEn?: string | null;
     descriptionDe?: string | null;
@@ -17,17 +18,22 @@ interface RecipeCardProps {
     cookTime?: number | null;
     servings: number;
     category?: string | null;
+    isPublic?: boolean;
     favorites?: any[];
+    user?: { id: string; name: string | null; username: string } | null;
   };
   locale: string;
+  currentUserId?: string;
 }
 
-export default function RecipeCard({ recipe, locale }: RecipeCardProps) {
+export default function RecipeCard({ recipe, locale, currentUserId }: RecipeCardProps) {
   const [isPending, startTransition] = useTransition();
   const title = locale === 'de' ? recipe.titleDe : recipe.titleEn;
   const description = locale === 'de' ? recipe.descriptionDe : recipe.descriptionEn;
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
   const isFavorite = recipe.favorites && recipe.favorites.length > 0;
+  const isOwner = currentUserId === recipe.userId;
+  const authorName = recipe.user?.name || recipe.user?.username;
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,11 +63,17 @@ export default function RecipeCard({ recipe, locale }: RecipeCardProps) {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
 
-        {/* Badges over image */}
         <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-          <span className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-white text-[10px] font-bold uppercase tracking-widest border border-white/10">
-            {recipe.category || 'Rezept'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-white text-[10px] font-bold uppercase tracking-widest border border-white/10">
+              {recipe.category || 'Rezept'}
+            </span>
+            {isOwner && recipe.isPublic && (
+              <span className="px-2 py-1 bg-green-500/20 backdrop-blur-md rounded-full text-green-400 text-[10px] font-bold border border-green-500/30 flex items-center gap-1">
+                <Globe size={10} />
+              </span>
+            )}
+          </div>
           {totalTime > 0 && (
             <span className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-white text-[11px] font-semibold border border-white/10 flex items-center gap-1">
               ⌛ {totalTime}m
@@ -93,12 +105,24 @@ export default function RecipeCard({ recipe, locale }: RecipeCardProps) {
         </p>
 
         <div className="mt-auto pt-6 border-t border-white/5 flex items-center justify-between">
-          <div className="flex -space-x-2">
-            {/* Mock avatars or just a nice generic indicator */}
-            <div className="w-6 h-6 rounded-full bg-zinc-800 border-2 border-[#121214] flex items-center justify-center text-[10px] text-zinc-500">🍽️</div>
-            <span className="pl-3 text-xs font-bold text-zinc-500 self-center uppercase tracking-wider group-hover:text-zinc-400">
-              {recipe.servings} Portionen
-            </span>
+          <div className="flex items-center gap-2">
+            {!isOwner && authorName ? (
+              <>
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-500/30 border border-blue-500/30 flex items-center justify-center text-[10px] text-blue-400 font-bold">
+                  {authorName.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-xs font-medium text-zinc-500 group-hover:text-zinc-400">
+                  {authorName}
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="w-6 h-6 rounded-full bg-zinc-800 border-2 border-[#121214] flex items-center justify-center text-[10px] text-zinc-500">🍽️</div>
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-400">
+                  {recipe.servings} Portionen
+                </span>
+              </>
+            )}
           </div>
           <span className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 group-hover:bg-white group-hover:text-black transition-colors duration-300">
             <Maximize2 size={14} />

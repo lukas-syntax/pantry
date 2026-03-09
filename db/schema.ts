@@ -10,6 +10,7 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   name: text('name'),
   image: text('image'),
+  role: text('role').notNull().default('user'), // 'admin' | 'user'
   locale: text('locale').notNull().default('de'), // 'de' | 'en'
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
@@ -33,6 +34,7 @@ export const recipes = sqliteTable('recipes', {
   category: text('category'), // 'breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'asian', 'italian', etc.
   tags: text('tags', { mode: 'json' }).$type<string[]>().default([]),
   isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(false),
+  forkedFromId: text('forked_from_id').references((): any => recipes.id, { onDelete: 'set null' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
@@ -69,7 +71,7 @@ export const favorites = sqliteTable('favorites', {
 export const mealPlans = sqliteTable('meal_plans', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  recipeId: text('recipe_id').notNull().references(() => recipes.id),
+  recipeId: text('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
   date: text('date').notNull(), // ISO date string: 'YYYY-MM-DD'
   mealType: text('meal_type').notNull(), // 'breakfast', 'lunch', 'dinner', 'snack'
   servings: integer('servings').notNull().default(2),
@@ -138,6 +140,12 @@ export const recipesRelations = relations(recipes, ({ one, many }) => ({
     fields: [recipes.userId],
     references: [users.id],
   }),
+  forkedFrom: one(recipes, {
+    fields: [recipes.forkedFromId],
+    references: [recipes.id],
+    relationName: 'forkedRecipes',
+  }),
+  forks: many(recipes, { relationName: 'forkedRecipes' }),
   ingredients: many(recipeIngredients),
   instructions: many(recipeInstructions),
   favorites: many(favorites),

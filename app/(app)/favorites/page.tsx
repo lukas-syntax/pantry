@@ -1,5 +1,6 @@
 import { Heart } from 'lucide-react';
 import { getFavoriteRecipes } from '@/app/actions/recipes';
+import { auth } from '@/lib/auth';
 import RecipeCard from '@/components/recipes/recipe-card';
 import { getTranslations } from 'next-intl/server';
 
@@ -8,6 +9,8 @@ export const dynamic = 'force-dynamic';
 export default async function FavoritesPage() {
   const locale = 'en' as 'de' | 'en';
   const t = await getTranslations('favorites');
+  const session = await auth();
+  const currentUserId = session?.user?.id ?? '';
 
   const favoriteRecipes = await getFavoriteRecipes();
 
@@ -25,7 +28,7 @@ export default async function FavoritesPage() {
       {favoriteRecipes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {favoriteRecipes.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} locale={locale} />
+            <RecipeCard key={recipe.id} recipe={recipe} locale={locale} currentUserId={currentUserId} />
           ))}
         </div>
       ) : (

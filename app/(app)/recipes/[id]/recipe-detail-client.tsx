@@ -1,18 +1,19 @@
 'use client';
 
-import { ArrowLeft, Heart, Printer, Share2, Clock, Flame, Users, ShoppingBag, Trash2, Edit, Check, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowLeft, Heart, Printer, Share2, Clock, Flame, Users, ShoppingBag, Trash2, Edit, Check, CheckCircle2, Circle, Globe, GlobeLock, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import IngredientScaler from '@/components/recipes/ingredient-scaler';
 import IngredientsList from '@/components/recipes/ingredients-list';
-import { toggleFavorite, deleteRecipe } from '@/app/actions/recipes';
+import { toggleFavorite, deleteRecipe, toggleRecipePublic, forkRecipe } from '@/app/actions/recipes';
 
 interface RecipeDetailClientProps {
   recipe: any;
   locale: string;
+  currentUserId: string;
 }
 
-export default function RecipeDetailClient({ recipe, locale }: RecipeDetailClientProps) {
+export default function RecipeDetailClient({ recipe, locale, currentUserId }: RecipeDetailClientProps) {
   const [scale, setScale] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
@@ -21,6 +22,8 @@ export default function RecipeDetailClient({ recipe, locale }: RecipeDetailClien
   const description = locale === 'de' ? recipe.descriptionDe : recipe.descriptionEn;
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
   const isFavorite = recipe.favorites && recipe.favorites.length > 0;
+  const isOwner = currentUserId === recipe.userId;
+  const authorName = recipe.user?.name || recipe.user?.username;
 
   const handleFavoriteClick = () => {
     startTransition(() => {
@@ -34,6 +37,18 @@ export default function RecipeDetailClient({ recipe, locale }: RecipeDetailClien
         deleteRecipe(recipe.id);
       });
     }
+  };
+
+  const handleTogglePublic = () => {
+    startTransition(() => {
+      toggleRecipePublic(recipe.id);
+    });
+  };
+
+  const handleFork = () => {
+    startTransition(() => {
+      forkRecipe(recipe.id);
+    });
   };
 
   const toggleStep = (stepNumber: number) => {
@@ -70,16 +85,41 @@ export default function RecipeDetailClient({ recipe, locale }: RecipeDetailClien
           </div>
         )}
 
-        {/* ... (Actions same as before but ensure consistency) ... */}
         {/* Floating Action Bar */}
         <div className="absolute top-28 right-6 md:right-12 z-50 flex gap-3">
-          <Link
-            href={`/recipes/${recipe.id}/edit`}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white hover:text-black transition-all duration-300"
-            title="Bearbeiten"
-          >
-            <Edit size={20} strokeWidth={2} />
-          </Link>
+          {isOwner && (
+            <Link
+              href={`/recipes/${recipe.id}/edit`}
+              className="w-12 h-12 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white hover:text-black transition-all duration-300"
+              title="Bearbeiten"
+            >
+              <Edit size={20} strokeWidth={2} />
+            </Link>
+          )}
+          {isOwner && (
+            <button
+              onClick={handleTogglePublic}
+              disabled={isPending}
+              className={`w-12 h-12 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 ${
+                recipe.isPublic
+                  ? 'bg-green-500/20 border-green-500/40 text-green-400 hover:bg-green-500 hover:text-white'
+                  : 'bg-black/40 border-white/10 text-white hover:bg-green-500/20 hover:border-green-500/40 hover:text-green-400'
+              }`}
+              title={recipe.isPublic ? 'Privat machen' : 'Teilen'}
+            >
+              {recipe.isPublic ? <Globe size={20} /> : <GlobeLock size={20} />}
+            </button>
+          )}
+          {!isOwner && (
+            <button
+              onClick={handleFork}
+              disabled={isPending}
+              className="w-12 h-12 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-blue-500 hover:border-blue-500 transition-all duration-300"
+              title="In meine Rezepte kopieren"
+            >
+              <Copy size={20} />
+            </button>
+          )}
           <button
             onClick={handleFavoriteClick}
             disabled={isPending}
@@ -92,7 +132,16 @@ export default function RecipeDetailClient({ recipe, locale }: RecipeDetailClien
           >
             <Heart size={20} className={isFavorite ? 'fill-current' : ''} />
           </button>
-          {/* ... other buttons ... */}
+          {isOwner && (
+            <button
+              onClick={handleDelete}
+              disabled={isPending}
+              className="w-12 h-12 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-red-500 hover:border-red-500 transition-all duration-300"
+              title="Löschen"
+            >
+              <Trash2 size={20} />
+            </button>
+          )}
         </div>
         
         {/* Content Overlay */}
@@ -103,6 +152,24 @@ export default function RecipeDetailClient({ recipe, locale }: RecipeDetailClien
               <span className="px-4 py-1.5 rounded-full bg-white text-black text-sm font-bold tracking-wide">
                 {recipe.category || 'Rezept'}
               </span>
+              {!isOwner && authorName && (
+                <span className="px-4 py-1.5 rounded-full bg-blue-500/20 backdrop-blur-md text-blue-300 border border-blue-500/30 text-sm font-medium flex items-center gap-1.5">
+                  <Users size={14} />
+                  {authorName}
+                </span>
+              )}
+              {isOwner && recipe.isPublic && (
+                <span className="px-4 py-1.5 rounded-full bg-green-500/20 backdrop-blur-md text-green-300 border border-green-500/30 text-sm font-medium flex items-center gap-1.5">
+                  <Globe size={14} />
+                  Public
+                </span>
+              )}
+              {recipe.forkedFromId && (
+                <span className="px-4 py-1.5 rounded-full bg-purple-500/20 backdrop-blur-md text-purple-300 border border-purple-500/30 text-sm font-medium flex items-center gap-1.5">
+                  <Copy size={14} />
+                  Fork
+                </span>
+              )}
               {recipe.tags &&
                 recipe.tags.map((tag: string) => (
                   <span
